@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -102,6 +102,12 @@ namespace Clock
 		private void tsmiFont_Click(object sender, EventArgs e)
 		{
 			fontDialog.ShowDialog();
+		}
+
+		// Вызывается из FontDialog при нажатии OK — применяет шрифт к часам
+		public void SetClockFont(Font font)
+		{
+			labelTime.Font = font;
 		}
 	}
 }

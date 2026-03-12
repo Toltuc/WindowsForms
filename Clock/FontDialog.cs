@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -15,12 +15,16 @@ namespace Clock
 	public partial class FontDialog : Form
 	{
 		MainForm parent;
+
+		// Словарь: отображаемое имя -> полный путь к файлу
+		Dictionary<string, string> fontPaths = new Dictionary<string, string>();
+
 		public FontDialog()
 		{
 			InitializeComponent();
 			LoadFonts();
 		}
-		public FontDialog(MainForm parent):this()
+		public FontDialog(MainForm parent) : this()
 		{
 			this.parent = parent;
 		}
@@ -29,30 +33,47 @@ namespace Clock
 		{
 			this.Location = new Point(parent.Location.X - this.Width / 3, parent.Location.Y + 80);
 		}
+
 		void LoadFonts()
 		{
 			Console.WriteLine(Application.ExecutablePath);
-			Directory.SetCurrentDirectory($"{Application.ExecutablePath}\\..\\..\\..\\Fonts");
+			string fontsDir = Path.GetFullPath(
+				Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), @"..\..\..\Fonts"));
+			Directory.SetCurrentDirectory(fontsDir);
 			Console.WriteLine(Directory.GetCurrentDirectory());
-			//string[] files = Directory.GetFiles(Directory.GetCurrentDirectory());
-			LoadFonts(Directory.GetCurrentDirectory(), "*.ttf");
-			LoadFonts(Directory.GetCurrentDirectory(), "*.otf");
+
+			// Грузим шрифты из текущей папки и всех вложенных (SearchOption.AllDirectories)
+			LoadFonts(fontsDir, "*.ttf");
+			LoadFonts(fontsDir, "*.otf");
 		}
+
 		void LoadFonts(string path, string format)
 		{
-			string[] files = Directory.GetFiles(path, format);
-			for (int i = 0; i < files.Length; i++)
+			// AllDirectories — ключевое: загружаем шрифты из вложенных папок тоже
+			string[] files = Directory.GetFiles(path, format, SearchOption.AllDirectories);
+			foreach (string fullPath in files)
 			{
-				files[i] = files[i].Split('\\').Last();
+				string displayName = Path.GetFileName(fullPath);
+				// Если имя уже есть — добавляем папку для уникальности
+				if (fontPaths.ContainsKey(displayName))
+					displayName = Path.GetFileName(Path.GetDirectoryName(fullPath)) + "\\" + displayName;
+
+				fontPaths[displayName] = fullPath;
+				comboBoxFonts.Items.Add(displayName);
 			}
-			comboBoxFonts.Items.AddRange(files);
 		}
+
 		void ApplyFontExample()
 		{
+			if (comboBoxFonts.SelectedItem == null) return;
+			string selectedKey = comboBoxFonts.SelectedItem.ToString();
+			if (!fontPaths.ContainsKey(selectedKey)) return;
+
 			PrivateFontCollection pfc = new PrivateFontCollection();
-			pfc.AddFontFile(comboBoxFonts.SelectedItem.ToString());
+			pfc.AddFontFile(fontPaths[selectedKey]);
 			labelExample.Font = new Font(pfc.Families[0], (float)nudFontSize.Value);
 		}
+
 		private void comboBoxFonts_SelectedIndexChanged(object sender, EventArgs e)
 		{
 			ApplyFontExample();
@@ -61,6 +82,18 @@ namespace Clock
 		private void nudFontSize_ValueChanged(object sender, EventArgs e)
 		{
 			ApplyFontExample();
+		}
+
+		// При нажатии OK — применяем шрифт к часам на главной форме
+		private void buttonOK_Click(object sender, EventArgs e)
+		{
+			if (comboBoxFonts.SelectedItem == null) return;
+			string selectedKey = comboBoxFonts.SelectedItem.ToString();
+			if (!fontPaths.ContainsKey(selectedKey)) return;
+
+			PrivateFontCollection pfc = new PrivateFontCollection();
+			pfc.AddFontFile(fontPaths[selectedKey]);
+			parent.SetClockFont(new Font(pfc.Families[0], (float)nudFontSize.Value));
 		}
 	}
 }
