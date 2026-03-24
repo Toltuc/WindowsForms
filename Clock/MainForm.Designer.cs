@@ -1,4 +1,4 @@
-﻿namespace Clock
+namespace Clock
 {
 	partial class MainForm
 	{
@@ -183,6 +183,7 @@
 			this.tsmiAutostart.Name = "tsmiAutostart";
 			this.tsmiAutostart.Size = new System.Drawing.Size(180, 22);
 			this.tsmiAutostart.Text = "Autostart";
+			this.tsmiAutostart.CheckedChanged += new System.EventHandler(this.tsmiAutostart_CheckedChanged);
 			// 
 			// toolStripSeparator5
 			// 
@@ -260,6 +261,7 @@
 			this.Name = "MainForm";
 			this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
 			this.Text = "Clock P_421";
+			this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MainForm_FormClosing);
 			this.contextMenuStrip.ResumeLayout(false);
 			this.ResumeLayout(false);
 			this.PerformLayout();

@@ -8,6 +8,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
+using System.IO;    //	Input/Output
+using System.Diagnostics;
+
+using Microsoft.Win32;
 
 namespace Clock
 {
@@ -20,12 +24,12 @@ namespace Clock
 		{
 			InitializeComponent();
 			AllocConsole();
-			SetVisibility(tsmiShowControls.Checked = false);
 			this.Location = new Point(Screen.PrimaryScreen.Bounds.Width - this.Width - 25, 50);
 			backgroundColorDialog = new ColorDialog();
 			foregroundColorDialog = new ColorDialog();
-			fontDialog = new FontDialog(this);
-
+			LoadSettings();
+			if (fontDialog == null) fontDialog = new FontDialog(this);
+			SetVisibility(tsmiShowControls.Checked);
 		}
 		[DllImport("kernel32.dll")]
 		public static extern bool AllocConsole();
@@ -101,13 +105,67 @@ namespace Clock
 
 		private void tsmiFont_Click(object sender, EventArgs e)
 		{
-			fontDialog.ShowDialog();
+			if (fontDialog.ShowDialog() == DialogResult.OK)
+				labelTime.Font = fontDialog.Font;
 		}
 
-		// Вызывается из FontDialog при нажатии OK — применяет шрифт к часам
-		public void SetClockFont(Font font)
+		private void tsmiAutostart_CheckedChanged(object sender, EventArgs e)
 		{
-			labelTime.Font = font;
+			string key_name = "Clock_P_421";
+			RegistryKey rk = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+			if (tsmiAutostart.Checked) rk.SetValue(key_name, Application.ExecutablePath);
+			else rk.DeleteValue(key_name, false);
+			rk.Dispose();
 		}
+
+		void SaveSettings()
+		{
+			string filename = $"{Application.ExecutablePath}\\..\\..\\..\\Settings.ini";
+			StreamWriter writer = new StreamWriter(filename); //ini - Init (файл инициализации)
+			writer.WriteLine($"{this.Location.X}x{this.Location.Y}");
+			writer.WriteLine(tsmiTopmost.Checked);
+			writer.WriteLine(tsmiShowControls.Checked);
+			writer.WriteLine(tsmiShowDate.Checked);
+			writer.WriteLine(tsmiShowWeekday.Checked);
+			writer.WriteLine(tsmiAutostart.Checked);
+			writer.WriteLine(fontDialog.FontFile);
+			writer.WriteLine(fontDialog.NUDFontSize.Value);
+			writer.WriteLine(labelTime.BackColor.ToArgb());
+			writer.WriteLine(labelTime.ForeColor.ToArgb());
+			writer.Close();
+			Process.Start("notepad.exe", filename);
+		}
+
+		void LoadSettings()
+		{
+			StreamReader reader = null;
+			try
+			{
+				string filename = $"{Application.ExecutablePath}\\..\\..\\..\\Settings.ini";
+				reader = new StreamReader(filename);
+				string[] position = reader.ReadLine().Split('x');
+				this.Location = new Point(Convert.ToInt16(position.First()), Convert.ToInt16(position.Last()));
+				tsmiTopmost.Checked = bool.Parse(reader.ReadLine());
+				tsmiShowControls.Checked = bool.Parse(reader.ReadLine());
+				tsmiShowDate.Checked = bool.Parse(reader.ReadLine());
+				tsmiShowWeekday.Checked = bool.Parse(reader.ReadLine());
+				tsmiAutostart.Checked = bool.Parse(reader.ReadLine());
+
+				fontDialog = new FontDialog(this, reader.ReadLine(), Convert.ToDecimal(reader.ReadLine()));
+
+				this.labelTime.Font = fontDialog.Font;
+				labelTime.BackColor = backgroundColorDialog.Color = Color.FromArgb(Convert.ToInt32(reader.ReadLine()));
+				labelTime.ForeColor = foregroundColorDialog.Color = Color.FromArgb(Convert.ToInt32(reader.ReadLine()));
+				reader.Close();
+			}
+			catch (Exception ex)
+			{
+				reader?.Close();
+				fontDialog = new FontDialog(this);
+				MessageBox.Show(this, ex.Message, "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+			}
+		}
+
+		private void MainForm_FormClosing(object sender, FormClosingEventArgs e) => SaveSettings();
 	}
 }
